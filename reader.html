@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<title>Reader</title>
+<style>
+:root{
+  --bg:#101217; --surface:#16191f; --card:#1c2029; --border:#2a303c;
+  --text:#d9dee8; --sub:#97a0b0; --accent:#6c8cff; --accent-soft:rgba(108,140,255,.14);
+  --shadow:0 8px 28px rgba(0,0,0,.45); color-scheme:dark;
+}
+:root[data-theme="darksepia"]{
+  --bg:#1f1a13; --surface:#262019; --card:#2c251c; --border:#453a2b;
+  --text:#e8dcc8; --sub:#a6957d; --accent:#c89858; --accent-soft:rgba(200,152,88,.14);
+  --shadow:0 8px 28px rgba(0,0,0,.5); color-scheme:dark;
+}
+:root[data-theme="sepia"]{
+  --bg:#f3ead6; --surface:#ede2c8; --card:#e7dabc; --border:#d5c5a2;
+  --text:#3d2f1e; --sub:#7a6a52; --accent:#9c6b2f; --accent-soft:rgba(156,107,47,.14);
+  --shadow:0 8px 28px rgba(90,70,40,.18); color-scheme:light;
+}
+:root[data-theme="light"]{
+  --bg:#f6f7f9; --surface:#ffffff; --card:#ffffff; --border:#e3e6eb;
+  --text:#20242c; --sub:#6b7280; --accent:#2563eb; --accent-soft:rgba(37,99,235,.10);
+  --shadow:0 8px 28px rgba(30,40,60,.12); color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;scrollbar-color:var(--border) transparent}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;
+  transition:background .3s,color .3s;overflow:hidden}
+::-webkit-scrollbar{width:10px}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:6px}
+::-webkit-scrollbar-thumb:hover{background:var(--sub)}
+::-webkit-scrollbar-track{background:transparent}
+button,select,input{font-family:inherit}
+
+/* ---------- top bar ---------- */
+#topbar{position:fixed;top:0;left:0;right:0;height:52px;z-index:30;display:flex;
+  align-items:center;gap:8px;padding:0 14px;background:color-mix(in srgb,var(--surface) 88%,transparent);
+  backdrop-filter:blur(14px);border-bottom:1px solid var(--border)}
+.tbtn{height:34px;min-width:34px;padding:0 10px;border:0;border-radius:9px;background:transparent;
+  color:var(--sub);font-size:15px;cursor:pointer;transition:background .15s,color .15s;display:flex;align-items:center;justify-content:center;gap:6px}
+.tbtn:hover{background:var(--accent-soft);color:var(--text)}
+.tbtn.active{color:var(--accent);background:var(--accent-soft)}
+#bookTitle{font-weight:600;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:26vw}
+#spacer{flex:1}
+#chWrap{display:flex;align-items:center;gap:4px}
+#chSel{max-width:340px;height:32px;background:var(--card);color:var(--text);border:1px solid var(--border);
+  border-radius:8px;padding:0 8px;font-size:12.5px;outline:none}
+#pbar{position:fixed;top:52px;left:0;height:3px;width:0;background:linear-gradient(90deg,var(--accent),color-mix(in srgb,var(--accent) 60%,white));z-index:31;transition:width .12s;border-radius:0 3px 3px 0}
+
+/* ---------- content ---------- */
+#scroller{position:absolute;top:52px;bottom:0;left:0;right:0;overflow-y:auto;scroll-behavior:smooth}
+#page{max-width:var(--pw,720px);margin:0 auto;padding:40px 26px 45vh}
+#chapHead{font-family:'Segoe UI',sans-serif;font-weight:650;font-size:1.28em;margin:6px 0 2.2em;color:var(--text);text-align:center;letter-spacing:.2px}
+#chapHead small{display:block;color:var(--sub);font-weight:400;font-size:.62em;margin-top:8px;letter-spacing:1.5px;text-transform:uppercase}
+#content{font-family:var(--ff,Georgia,serif);font-size:var(--fs,19px);line-height:var(--lh,1.85);}
+#content p{margin:0 0 1.05em;padding:2px 10px;border-left:3px solid transparent;border-radius:6px;
+  transition:background .35s,border-color .35s}
+#content p.tts-on{background:var(--accent-soft);border-left-color:var(--accent)}
+#content img{max-width:100%;height:auto;display:block;margin:18px auto;border-radius:12px;box-shadow:var(--shadow)}
+#endNav{display:flex;gap:12px;justify-content:center;margin-top:60px}
+.navBig{padding:12px 26px;border-radius:12px;border:1px solid var(--border);background:var(--card);
+  color:var(--text);font-size:14px;cursor:pointer;transition:transform .12s,border-color .15s}
+.navBig:hover{border-color:var(--accent);transform:translateY(-1px)}
+#loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--sub);font-size:14px;letter-spacing:.4px}
+
+/* ---------- panels ---------- */
+.panel{position:fixed;top:60px;right:14px;width:320px;max-height:calc(100% - 140px);overflow-y:auto;
+  background:var(--surface);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow);
+  padding:16px;z-index:40;opacity:0;transform:translateY(-8px) scale(.98);pointer-events:none;
+  transition:opacity .18s,transform .18s}
+.panel.open{opacity:1;transform:none;pointer-events:auto}
+.panel h4{margin:2px 0 12px;font-size:11px;letter-spacing:1.6px;color:var(--sub);text-transform:uppercase}
+.prow{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.prow label{width:74px;font-size:12.5px;color:var(--sub);flex-shrink:0}
+.prow input[type=range]{flex:1;accent-color:var(--accent)}
+.prow select,.prow input[type=text],.prow input[type=password]{flex:1;height:32px;background:var(--card);color:var(--text);
+  border:1px solid var(--border);border-radius:8px;padding:0 8px;font-size:12.5px;outline:none;min-width:0}
+.prow .val{width:38px;text-align:right;font-size:12px;color:var(--sub)}
+.seg{display:flex;gap:6px;flex:1}
+.seg button{flex:1;height:32px;border:1px solid var(--border);background:var(--card);color:var(--sub);
+  border-radius:8px;cursor:pointer;font-size:12.5px;transition:all .15s}
+.seg button.sel{background:var(--accent-soft);border-color:var(--accent);color:var(--text)}
+
+#toc{left:14px;right:auto;width:340px}
+#tocList{list-style:none;margin:0;padding:0}
+#tocList li{padding:9px 12px;border-radius:9px;font-size:13px;cursor:pointer;color:var(--sub);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:background .12s,color .12s}
+#tocList li:hover{background:var(--accent-soft);color:var(--text)}
+#tocList li.cur{background:var(--accent-soft);color:var(--accent);font-weight:600}
+#bookCard{display:flex;gap:12px;margin-bottom:14px;align-items:center}
+#bookCard img{width:52px;height:72px;object-fit:cover;border-radius:8px;box-shadow:var(--shadow)}
+#bookCard .bt{font-weight:600;font-size:13.5px;line-height:1.35}
+#bookCard .ba{color:var(--sub);font-size:12px;margin-top:3px}
+
+/* ---------- TTS bar ---------- */
+#ttsbar{position:fixed;left:50%;bottom:18px;transform:translate(-50%,90px);z-index:35;
+  display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:18px;
+  background:color-mix(in srgb,var(--surface) 92%,transparent);backdrop-filter:blur(14px);
+  border:1px solid var(--border);box-shadow:var(--shadow);transition:transform .28s cubic-bezier(.34,1.4,.5,1)}
+#ttsbar.show{transform:translate(-50%,0)}
+.pbtn{width:42px;height:42px;border-radius:50%;border:0;background:var(--accent);color:#fff;
+  font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .12s,filter .15s}
+.pbtn:hover{filter:brightness(1.12);transform:scale(1.05)}
+.pbtn.small{width:34px;height:34px;background:var(--card);color:var(--text);border:1px solid var(--border);font-size:12px}
+#ttsRate{width:90px;accent-color:var(--accent)}
+#ttsbar .val{font-size:11.5px;color:var(--sub);width:34px}
+#ttsState{font-size:11.5px;color:var(--sub);max-width:130px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+#toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--surface);
+  border:1px solid var(--border);color:var(--text);padding:10px 18px;border-radius:12px;font-size:13px;
+  box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:opacity .25s;z-index:60;max-width:70vw}
+#toast.show{opacity:1}
+.hint{font-size:11.5px;color:var(--sub);line-height:1.5;margin-top:4px}
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <button class="tbtn" id="btnToc" title="Chapters">☰</button>
+  <div id="bookTitle">—</div>
+  <div id="spacer"></div>
+  <div id="chWrap">
+    <button class="tbtn" id="btnPrev" title="Previous chapter">‹</button>
+    <select id="chSel"></select>
+    <button class="tbtn" id="btnNext" title="Next chapter">›</button>
+  </div>
+  <div id="spacer2" style="flex:1"></div>
+  <button class="tbtn" id="btnTts" title="Read aloud">🔊</button>
+  <button class="tbtn" id="btnAa" title="Appearance" style="font-weight:700">Aa</button>
+</div>
+<div id="pbar"></div>
+
+<div id="scroller">
+  <div id="page">
+    <div id="chapHead"></div>
+    <div id="content"></div>
+    <div id="endNav" style="display:none">
+      <button class="navBig" id="endPrev">‹ Previous</button>
+      <button class="navBig" id="endNext">Next chapter ›</button>
+    </div>
+  </div>
+</div>
+<div id="loading">Open a novel from the Library tab, or an EPUB file.</div>
+
+<div class="panel" id="toc">
+  <div id="bookCard" style="display:none"><img id="bcImg" alt=""><div><div class="bt" id="bcTitle"></div><div class="ba" id="bcAuthor"></div></div></div>
+  <h4>Chapters</h4>
+  <ul id="tocList"></ul>
+</div>
+
+<div class="panel" id="aa">
+  <h4>Appearance</h4>
+  <div class="prow"><label>Font</label>
+    <select id="fontSel">
+      <option value="Georgia,serif">Georgia</option>
+      <option value="Cambria,serif">Cambria</option>
+      <option value="'Segoe UI',sans-serif">Segoe UI</option>
+      <option value="Verdana,sans-serif">Verdana</option>
+    </select>
+  </div>
+  <div class="prow"><label>Size</label><input type="range" id="fsRange" min="14" max="28" step="1"><span class="val" id="fsVal"></span></div>
+  <div class="prow"><label>Spacing</label><input type="range" id="lhRange" min="1.4" max="2.3" step="0.05"><span class="val" id="lhVal"></span></div>
+  <div class="prow"><label>Width</label><input type="range" id="pwRange" min="560" max="1000" step="20"><span class="val" id="pwVal"></span></div>
+</div>
+
+<div class="panel" id="tts">
+  <h4>Read aloud</h4>
+  <button id="ttsStartBtn" style="width:100%;height:42px;border:0;border-radius:11px;background:var(--accent);color:#fff;font-size:14px;font-weight:600;cursor:pointer;margin-bottom:14px">▶ Start reading</button>
+  <div class="prow"><label>Language</label><select id="langSel"></select></div>
+  <div class="prow"><label>Voice</label><select id="voiceSel"></select><button class="pbtn small" id="previewBtn" title="Preview this voice" style="flex-shrink:0">▶</button></div>
+  <div class="prow"><label>Speed</label><input type="range" id="rateRange" min="0.5" max="2.5" step="0.05"><span class="val" id="rateVal"></span></div>
+  <div class="prow"><label>Auto next</label><div class="seg" style="max-width:120px" id="autoSeg"><button data-a="1">On</button><button data-a="0">Off</button></div></div>
+  <div class="hint">Natural voices work out of the box. Add a Google Cloud TTS key in the app's Settings for Google's own voices.</div>
+</div>
+
+<div id="ttsbar">
+  <button class="pbtn small" id="ttsPrevP" title="Previous paragraph">⏮</button>
+  <button class="pbtn" id="ttsPlay" title="Play / pause">▶</button>
+  <button class="pbtn small" id="ttsStop" title="Stop">✕</button>
+  <button class="pbtn small" id="ttsNextP" title="Next paragraph">⏭</button>
+  <input type="range" id="ttsRate" min="0.5" max="2.5" step="0.05" title="Speed">
+  <span class="val" id="ttsRateVal">1x</span>
+  <span id="ttsState"></span>
+</div>
+
+<div id="toast"></div>
+
+<script>
+"use strict";
+const bridge = window.chrome && window.chrome.webview ? window.chrome.webview : null;
+const $ = id => document.getElementById(id);
+
+/* ---------------- state ---------------- */
+let book = null;          // {title, author, cover, key, chapters[]}
+let cur = -1;             // current chapter index
+let prefs = load('reader-prefs', {theme:'dark', font:'Georgia,serif', fs:19, lh:1.85, pw:720, rate:1, voice:'', lang:'en-US', autoNext:true});
+let onlineVoices = [];    // [{name,lang,gender,src:'e'|'g'}] — Edge natural (free) + Google Cloud
+let pendingGtts = {};     // id -> {resolve,reject}
+let gttsId = 0;
+
+function load(k, d){ try{ const v=localStorage.getItem(k); return v?Object.assign({},d,JSON.parse(v)):d; }catch(e){ return d; } }
+function save(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),3500); }
+
+/* ---------------- prefs / appearance ---------------- */
+function applyPrefs(){
+  // theme is driven entirely by the app (bridge 'theme' message) — never set here
+  const r=document.documentElement.style;
+  r.setProperty('--ff', prefs.font); r.setProperty('--fs', prefs.fs+'px');
+  r.setProperty('--lh', prefs.lh);   r.setProperty('--pw', prefs.pw+'px');
+  $('fsRange').value=prefs.fs; $('fsVal').textContent=prefs.fs;
+  $('lhRange').value=prefs.lh; $('lhVal').textContent=Number(prefs.lh).toFixed(2);
+  $('pwRange').value=prefs.pw; $('pwVal').textContent=prefs.pw;
+  $('fontSel').value=prefs.font;
+  $('rateRange').value=prefs.rate; $('rateVal').textContent=prefs.rate+'x';
+  $('ttsRate').value=prefs.rate; $('ttsRateVal').textContent=prefs.rate+'x';
+  document.querySelectorAll('#autoSeg button').forEach(b=>b.classList.toggle('sel', (b.dataset.a==='1')===prefs.autoNext));
+}
+function savePrefs(){ save('reader-prefs', prefs); }
+
+$('autoSeg').addEventListener('click', e=>{ if(e.target.dataset.a!==undefined){ prefs.autoNext=e.target.dataset.a==='1'; applyPrefs(); savePrefs(); } });
+$('fontSel').addEventListener('change', e=>{ prefs.font=e.target.value; applyPrefs(); savePrefs(); });
+$('fsRange').addEventListener('input', e=>{ prefs.fs=+e.target.value; applyPrefs(); savePrefs(); });
+$('lhRange').addEventListener('input', e=>{ prefs.lh=+e.target.value; applyPrefs(); savePrefs(); });
+$('pwRange').addEventListener('input', e=>{ prefs.pw=+e.target.value; applyPrefs(); savePrefs(); });
+function setRate(v){ prefs.rate=+v; applyPrefs(); savePrefs(); if(tts.mode==='device'&&tts.playing){ /* applies on next chunk */ } }
+$('rateRange').addEventListener('input', e=>setRate(e.target.value));
+$('ttsRate').addEventListener('input', e=>setRate(e.target.value));
+
+/* ---------------- panels ---------------- */
+const panels={toc:$('toc'), aa:$('aa'), tts:$('tts')};
+function togglePanel(name){
+  for(const k in panels) panels[k].classList.toggle('open', k===name && !panels[k].classList.contains('open'));
+  $('btnToc').classList.toggle('active', panels.toc.classList.contains('open'));
+  $('btnAa').classList.toggle('active', panels.aa.classList.contains('open'));
+  $('btnTts').classList.toggle('active', panels.tts.classList.contains('open'));
+}
+$('btnToc').onclick=()=>togglePanel('toc');
+$('btnAa').onclick=()=>togglePanel('aa');
+$('btnTts').onclick=()=>togglePanel('tts');
+document.addEventListener('keydown', e=>{
+  if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT') return;
+  if(e.key==='Escape') togglePanel('');
+  if(e.key==='ArrowLeft') go(cur-1);
+  if(e.key==='ArrowRight') go(cur+1);
+});
+
+/* ---------------- book / chapters ---------------- */
+function posKey(){ return 'pos:'+(book?book.key:''); }
+
+function onBook(b){
+  book=b; $('loading').style.display='none';
+  $('bookTitle').textContent=b.title;
+  $('bcTitle').textContent=b.title; $('bcAuthor').textContent=b.author||'';
+  if(b.cover){ $('bcImg').src=b.cover; $('bookCard').style.display='flex'; }
+  else $('bookCard').style.display='none';
+  const sel=$('chSel'); sel.innerHTML='';
+  const ul=$('tocList'); ul.innerHTML='';
+  b.chapters.forEach((t,i)=>{
+    const o=document.createElement('option'); o.value=i; o.textContent=t; sel.appendChild(o);
+    const li=document.createElement('li'); li.textContent=t; li.onclick=()=>{ go(i); togglePanel(''); }; ul.appendChild(li);
+  });
+  const p=load(posKey(), {idx:0, r:0});
+  go(Math.min(p.idx||0, b.chapters.length-1), true);
+}
+
+let restoreScroll=-1, resumeTts=false;
+function go(i, restore){
+  if(!book || i<0 || i>=book.chapters.length) return;
+  ttsStopAll();
+  cur=i;
+  restoreScroll = restore ? (load(posKey(),{idx:0,r:0}).r||0) : -1;
+  $('content').innerHTML=''; $('chapHead').innerHTML=''; $('endNav').style.display='none';
+  $('chapHead').textContent='…';
+  bridge && bridge.postMessage({cmd:'get', idx:i});
+}
+
+function onChapter(m){
+  if(m.idx!==cur) return;
+  $('chapHead').innerHTML='';
+  const small=document.createElement('small'); small.textContent=(cur+1)+' / '+book.chapters.length;
+  $('chapHead').textContent=m.title; $('chapHead').appendChild(small);
+  $('content').innerHTML=m.html;
+  // ensure text is in <p> blocks for highlighting: wrap loose text nodes
+  $('chSel').value=cur;
+  document.querySelectorAll('#tocList li').forEach((li,ix)=>li.classList.toggle('cur', ix===cur));
+  $('endNav').style.display='flex';
+  $('endPrev').style.visibility = cur>0?'visible':'hidden';
+  $('endNext').textContent = cur<book.chapters.length-1 ? 'Next chapter ›' : 'The End';
+  const sc=$('scroller');
+  if(restoreScroll>=0){ requestAnimationFrame(()=>{ sc.scrollTop=restoreScroll*(sc.scrollHeight-sc.clientHeight); }); restoreScroll=-1; }
+  else sc.scrollTop=0;
+  if(resumeTts){ resumeTts=false; setTimeout(()=>ttsStart(0),350); }
+}
+
+$('btnPrev').onclick=()=>go(cur-1);
+$('btnNext').onclick=()=>go(cur+1);
+$('endPrev').onclick=()=>go(cur-1);
+$('endNext').onclick=()=>{ if(cur<book.chapters.length-1) go(cur+1); else bridge && bridge.postMessage({cmd:'finished'}); };
+$('chSel').addEventListener('change', e=>go(+e.target.value));
+
+/* progress save + top bar */
+let saveT=null;
+$('scroller').addEventListener('scroll', ()=>{
+  const sc=$('scroller');
+  const denom=Math.max(1, sc.scrollHeight-sc.clientHeight);
+  $('pbar').style.width=(100*sc.scrollTop/denom)+'%';
+  clearTimeout(saveT);
+  saveT=setTimeout(()=>{ if(book&&cur>=0){ const r=sc.scrollTop/denom; save(posKey(), {idx:cur, r});
+    bridge && bridge.postMessage({cmd:'savepos', key:book.key, idx:cur, r}); } }, 400);
+});
+
+/* ---------------- TTS ---------------- */
+const tts={ playing:false, paused:false, mode:'device', items:[], pos:0, chunkPos:0, chunks:[], audio:null, prefetch:{} };
+
+function paraEls(){ return Array.from(document.querySelectorAll('#content p')).filter(p=>p.innerText.trim().length>0); }
+function splitChunks(text, max){
+  const out=[]; let s=text.trim();
+  while(s.length>max){
+    let cut=-1;
+    for(const re of [/[.!?…"”]\s/g]){ let m; while((m=re.exec(s.slice(0,max)))) cut=m.index+1; }
+    if(cut<40) cut=s.lastIndexOf(' ',max); if(cut<40) cut=max;
+    out.push(s.slice(0,cut).trim()); s=s.slice(cut).trim();
+  }
+  if(s) out.push(s);
+  return out;
+}
+function highlight(i){
+  paraEls().forEach((p,ix)=>p.classList.toggle('tts-on', ix===i));
+  const el=paraEls()[i];
+  if(el) el.scrollIntoView({block:'center', behavior:'smooth'});
+}
+function ttsUi(){
+  $('ttsbar').classList.toggle('show', tts.playing||tts.paused);
+  $('ttsPlay').textContent = (tts.playing&&!tts.paused) ? '⏸' : '▶';
+  $('ttsState').textContent = tts.playing||tts.paused ? ('¶ '+(tts.pos+1)+' / '+tts.items.length) : '';
+}
+function ttsStopAll(){
+  tts.playing=false; tts.paused=false; tts.items=[]; tts.pos=0; tts.chunks=[]; tts.chunkPos=0;
+  try{ speechSynthesis.cancel(); }catch(e){}
+  if(tts.audio){ try{ tts.audio.pause(); }catch(e){} tts.audio=null; }
+  tts.prefetch={};
+  paraEls().forEach(p=>p.classList.remove('tts-on'));
+  ttsUi();
+}
+function currentVoice(){
+  const v=$('voiceSel').value;
+  if(v.startsWith('g|')) return {mode:'google', name:v.slice(2)};
+  if(v.startsWith('e|')) return {mode:'edge', name:v.slice(2)};
+  return {mode:'device', name:v.slice(2)};
+}
+function firstVisiblePara(){
+  const els=paraEls();
+  for(let i=0;i<els.length;i++){
+    const r=els[i].getBoundingClientRect();
+    if(r.bottom > 92) return i;      // first paragraph still on screen below the top bar
+  }
+  return 0;
+}
+function ttsStart(fromPara){
+  const els=paraEls();
+  if(!els.length){ toast('Nothing to read on this page.'); return; }
+  ttsStopAll();
+  tts.items=els.map(p=>p.innerText.trim());
+  tts.pos=Math.max(0, Math.min(fromPara||0, tts.items.length-1));
+  tts.playing=true; tts.paused=false;
+  tts.mode=currentVoice().mode;
+  speakPara();
+  ttsUi();
+}
+function nextPara(){
+  tts.pos++;
+  if(tts.pos>=tts.items.length){
+    if(prefs.autoNext && cur<book.chapters.length-1){ resumeTts=true; go(cur+1); }
+    else { ttsStopAll(); toast('Finished this chapter.'); }
+    return;
+  }
+  speakPara();
+}
+function chunkMax(){ return tts.mode==='google' ? 3800 : (tts.mode==='edge' ? 2800 : 1200); }
+function speakPara(){
+  if(!tts.playing) return;
+  highlight(tts.pos); ttsUi();
+  tts.chunks=splitChunks(tts.items[tts.pos], chunkMax());
+  tts.chunkPos=0;
+  speakChunk();
+}
+function speakChunk(){
+  if(!tts.playing) return;
+  if(tts.chunkPos>=tts.chunks.length){ nextPara(); return; }
+  const text=tts.chunks[tts.chunkPos];
+  if(tts.mode==='device') devicePlay(text);
+  else gttsPlay(text);
+}
+function devicePlay(text){
+  const u=new SpeechSynthesisUtterance(text);
+  const vs=speechSynthesis.getVoices();
+  const want=currentVoice().name;
+  const v=vs.find(x=>x.name===want) || vs.find(x=>x.lang && x.lang.startsWith(prefs.lang)) || vs[0];
+  if(v) u.voice=v;
+  u.rate=prefs.rate;
+  u.onend=()=>{ if(tts.playing&&!tts.paused){ tts.chunkPos++; speakChunk(); } };
+  u.onerror=e=>{ if(e.error!=='interrupted'&&e.error!=='canceled'){ toast('Speech error: '+e.error); ttsStopAll(); } };
+  speechSynthesis.speak(u);
+}
+function gttsFetch(text){
+  const id='g'+(++gttsId);
+  const cv=currentVoice();
+  return new Promise((resolve,reject)=>{
+    pendingGtts[id]={resolve,reject};
+    bridge.postMessage({cmd:'gtts', id, text, voice:cv.name, engine:cv.mode==='google'?'g':'e', rate:prefs.rate});
+    setTimeout(()=>{ if(pendingGtts[id]){ delete pendingGtts[id]; reject(new Error('TTS timeout')); } }, 45000);
+  });
+}
+async function gttsPlay(text){
+  try{
+    let p=tts.prefetch[text]; delete tts.prefetch[text];
+    const audio64 = await (p || gttsFetch(text));
+    if(!tts.playing) return;
+    // prefetch the next chunk / first chunk of next paragraph
+    const nx = tts.chunkPos+1<tts.chunks.length ? tts.chunks[tts.chunkPos+1]
+             : (tts.pos+1<tts.items.length ? splitChunks(tts.items[tts.pos+1],chunkMax())[0] : null);
+    if(nx && !tts.prefetch[nx]) tts.prefetch[nx]=gttsFetch(nx).catch(()=>null);
+    const a=new Audio('data:audio/mp3;base64,'+audio64);
+    tts.audio=a;
+    a.onended=()=>{ if(tts.playing&&!tts.paused){ tts.chunkPos++; speakChunk(); } };
+    a.onerror=()=>{ toast('Audio playback error'); ttsStopAll(); };
+    await a.play();
+  }catch(err){ toast('Voice error: '+(err&&err.message?err.message:err)); ttsStopAll(); }
+}
+function ttsPlayPause(){
+  if(!tts.playing && !tts.paused){ ttsStart(firstVisiblePara()); return; }
+  if(tts.paused){
+    tts.paused=false;
+    if(tts.mode==='device') speechSynthesis.resume(); else if(tts.audio) tts.audio.play();
+  } else {
+    tts.paused=true;
+    if(tts.mode==='device') speechSynthesis.pause(); else if(tts.audio) tts.audio.pause();
+  }
+  ttsUi();
+}
+$('ttsPlay').onclick=ttsPlayPause;
+$('ttsStop').onclick=ttsStopAll;
+$('ttsPrevP').onclick=()=>{ if(tts.playing){ const p=Math.max(0,tts.pos-1); interruptTo(p); } };
+$('ttsNextP').onclick=()=>{ if(tts.playing){ const p=Math.min(tts.items.length-1,tts.pos+1); interruptTo(p); } };
+function interruptTo(p){
+  try{ speechSynthesis.cancel(); }catch(e){}
+  if(tts.audio){ try{ tts.audio.pause(); }catch(e){} tts.audio=null; }
+  tts.pos=p; tts.paused=false; speakPara();
+}
+/* clicking a paragraph while TTS is active jumps there */
+$('content').addEventListener('click', e=>{
+  if(!tts.playing) return;
+  const p=e.target.closest('p'); if(!p) return;
+  const ix=paraEls().indexOf(p); if(ix>=0) interruptTo(ix);
+});
+$('ttsStartBtn').onclick=()=>{ togglePanel(''); ttsStart(firstVisiblePara()); };
+
+/* ---------------- voices ---------------- */
+function deviceVoices(){ return (speechSynthesis.getVoices()||[]); }
+function langList(){
+  const set=new Set();
+  deviceVoices().forEach(v=>v.lang&&set.add(v.lang));
+  onlineVoices.forEach(v=>set.add(v.lang));
+  const arr=Array.from(set).sort();
+  return arr.length?arr:['en-US'];
+}
+function fillLang(){
+  const sel=$('langSel'); const cur=prefs.lang; sel.innerHTML='';
+  langList().forEach(l=>{ const o=document.createElement('option'); o.value=l; o.textContent=l; sel.appendChild(o); });
+  sel.value=langList().includes(cur)?cur:(langList().find(l=>l.startsWith('en'))||langList()[0]);
+  prefs.lang=sel.value;
+}
+function voiceLabel(v, lang){
+  return v.name.replace(lang+'-','').replace('Neural','')+(v.gender?' · '+v.gender.toLowerCase():'');
+}
+function fillVoices(){
+  const sel=$('voiceSel'); sel.innerHTML='';
+  const lang=prefs.lang;
+  const eGroup=document.createElement('optgroup'); eGroup.label='Natural voices (free)';
+  onlineVoices.filter(v=>v.src==='e'&&v.lang===lang).forEach(v=>{
+    const o=document.createElement('option'); o.value='e|'+v.name; o.textContent=voiceLabel(v,lang);
+    eGroup.appendChild(o);
+  });
+  if(eGroup.children.length) sel.appendChild(eGroup);
+  const gGroup=document.createElement('optgroup'); gGroup.label='Google Cloud';
+  onlineVoices.filter(v=>v.src==='g'&&v.lang===lang).forEach(v=>{
+    const o=document.createElement('option'); o.value='g|'+v.name; o.textContent=voiceLabel(v,lang);
+    gGroup.appendChild(o);
+  });
+  if(gGroup.children.length) sel.appendChild(gGroup);
+  const dGroup=document.createElement('optgroup'); dGroup.label='This device (offline)';
+  deviceVoices().filter(v=>!lang||v.lang===lang||v.lang.startsWith(lang.split('-')[0])).forEach(v=>{
+    const o=document.createElement('option'); o.value='d|'+v.name; o.textContent=v.name.replace('Microsoft ','');
+    dGroup.appendChild(o);
+  });
+  if(!dGroup.children.length) deviceVoices().forEach(v=>{ const o=document.createElement('option'); o.value='d|'+v.name; o.textContent=v.name; dGroup.appendChild(o); });
+  sel.appendChild(dGroup);
+  const saved=prefs.voice;
+  if(saved && Array.from(sel.options).some(o=>o.value===saved)){ sel.value=saved; return; }
+  // default: prefer a free natural voice for this language
+  const eOpts=Array.from(eGroup.children);
+  if(eOpts.length){
+    const fav=eOpts.find(o=>/Ava|Aria|Jenny|Multilingual/i.test(o.value))||eOpts[0];
+    sel.value=fav.value;
+  }
+}
+$('langSel').addEventListener('change', e=>{ prefs.lang=e.target.value; savePrefs(); fillVoices(); });
+$('voiceSel').addEventListener('change', e=>{ prefs.voice=e.target.value; savePrefs(); });
+
+/* ---- voice preview ---- */
+let previewAudio=null;
+async function previewVoice(){
+  ttsStopAll();
+  if(previewAudio){ try{ previewAudio.pause(); }catch(e){} previewAudio=null; }
+  try{ speechSynthesis.cancel(); }catch(e){}
+  const sample="This is how I sound. I hope you enjoy reading with me.";
+  const cv=currentVoice();
+  if(cv.mode==='device'){
+    const u=new SpeechSynthesisUtterance(sample);
+    const v=deviceVoices().find(x=>x.name===cv.name); if(v) u.voice=v;
+    u.rate=prefs.rate;
+    speechSynthesis.speak(u);
+    return;
+  }
+  const btn=$('previewBtn'); btn.textContent='…'; btn.disabled=true;
+  try{
+    const a64=await gttsFetch(sample);
+    previewAudio=new Audio('data:audio/mp3;base64,'+a64);
+    await previewAudio.play();
+  }catch(err){ toast('Voice error: '+(err&&err.message?err.message:err)); }
+  btn.textContent='▶'; btn.disabled=false;
+}
+$('previewBtn').onclick=previewVoice;
+speechSynthesis.onvoiceschanged=()=>{ fillLang(); fillVoices(); };
+
+/* ---------------- bridge ---------------- */
+if(bridge){
+  bridge.addEventListener('message', e=>{
+    const m=e.data;
+    if(!m||!m.type) return;
+    if(m.type==='book') onBook(m);
+    else if(m.type==='theme'){ document.documentElement.dataset.theme = m.theme||'dark'; }
+    else if(m.type==='chapter') onChapter(m);
+    else if(m.type==='voices'){
+      if(m.ok){ onlineVoices=m.list||[]; if(m.err) toast(m.err); }
+      else if(m.err){ toast(m.err); }
+      fillLang(); fillVoices();
+    }
+    else if(m.type==='gtts'){
+      const p=pendingGtts[m.id]; if(!p) return; delete pendingGtts[m.id];
+      if(m.ok) p.resolve(m.audio); else p.reject(new Error(m.err||'TTS failed'));
+    }
+  });
+  bridge.postMessage({cmd:'ready'});
+}else{
+  $('loading').textContent='This page must run inside NovelGrabber.';
+}
+
+applyPrefs(); fillLang(); fillVoices();
+</script>
+</body>
+</html>
