@@ -2,7 +2,7 @@
 
 **Download web novels and light novels, read them offline, and listen to them with text‑to‑speech — on Windows.**
 
-NovelGrabber turns web serials into a clean, ad‑free personal library. It ships with a built‑in browser that clears Cloudflare and login walls, a proper reader with themes and TTS, and EPUB/PDF export. There's no account, no server, and nothing leaves your device.
+NovelGrabber turns web serials into a clean, ad‑free personal library. It ships with a built‑in browser that clears Cloudflare and login walls, a proper reader with themes and TTS, and EPUB/PDF export.
 
 |  |  |
 | --- | --- |
@@ -74,10 +74,10 @@ Novels are stored under `Documents\NovelGrabber\<Title>\` (`meta.json` + chapter
 
 
 
-## Legal license.md
+## Legal
 
 For personal, offline reading only. Respect the terms of service of the sites you use and the copyright of the works you download. This project is not affiliated with any of the sites listed.
 
 ## License
 
-MIT — see LICENSE
+MIT — see [`LICENSE`](LICENSE).
