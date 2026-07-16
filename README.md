@@ -80,4 +80,4 @@ For personal, offline reading only. Respect the terms of service of the sites yo
 
 ## License
 
-MIT — see [`LICENSE`](https://www.google.com/search?q=LICENSE).
+MIT — see LICENSE
